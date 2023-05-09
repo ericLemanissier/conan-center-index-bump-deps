@@ -46,36 +46,42 @@ jobs:
           cache: 'pip' # caching pip dependencies
       - run: |
           python3 -m pip install -r requirements.txt
-          conan config install https://github.com/ericLemanissier/conan-extensions.git
+          conan config install https://github.com/conan-io/conan-extensions.git
 
       # Runs a single command using the runners shell
       - name: Export all versions
         run: conan cci:export-all-versions --path recipes/
         working-directory: conan-center-index
+        
+      - name: Clean branches
+        run: |
+          for d in */*/ ; do
+            branch_name=bump/${d::-1}
+            if git rev-parse --quiet --verify origin/$branch_name >/dev/null ; then
+              echo "::group::$d"
+              if ! git merge --no-ff --no-commit origin/$branch_name ; then
+                echo "::warning  ::branch $branch_name has conflict with master, deleting it"
+                git push origin --delete $branch_name
+              elif git diff --cached --quiet ; then
+                echo "::warning  ::branch $branch_name has no change from master, deleting it"
+                git push origin --delete $branch_name
+              fi
+              git merge --abort
+              echo "::endgroup::"
+            fi
+          done
+        working-directory: conan-center-index/recipes
 
       # Runs a set of commands using the runners shell
-      - name: Run a multi-line script
+      - name: Bump versions, commit and push
         run: |
           mkdir ../../pages
           outfile=../../pages/index.md
-          echo "| recipe to upgrade | PR |" > $outfile
+          echo "| Recipe to upgrade | PR |" > $outfile
           echo "| ----------------- | -- |" >> $outfile
           for d in */*/ ; do
             echo "::group::$d"
             branch_name=bump/${d::-1}
-
-            if git ls-remote --exit-code --heads origin $branch_name > /dev/null; then
-              git switch master
-              if ! git merge --no-commit origin/$branch_name ; then
-                echo "::error ::branch $branch_name has conflict with master, deleting it"
-                git push origin --delete $branch_name
-              elif git diff --cached --quiet ; then
-                echo "::error ::branch $branch_name has no change from master, deleting it"
-                git push origin --delete $branch_name
-              fi
-              git merge --abort
-            fi
-
             if ! git switch -c $branch_name origin/$branch_name ; then
               git checkout -b $branch_name upstream/master
             fi
@@ -83,10 +89,11 @@ jobs:
             conan recipe:bump-deps ${d}/test_package
             git add ${d}conanfile.py
             git add ${d}test_package/conanfile.py
-            if git commit -m "$d: bump deps" ; then
+            if ! git diff --cached --quiet ; then
+              git commit -m "$d: bump deps"
               git push origin
             fi
-            if git ls-remote --exit-code --heads origin $branch_name > /dev/null; then
+            if git rev-parse --quiet --verify origin/$branch_name >/dev/null ; then
               echo "| $d | <a href=\"https://github.com/${{ github.repository_owner }}/conan-center-index/pull/new/$branch_name\">Open</a>" >> $outfile
             fi
             echo "::endgroup::"
