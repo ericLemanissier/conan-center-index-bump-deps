@@ -58,6 +58,11 @@ jobs:
           for d in */*/ ; do
             branch_name=bump/${d::-1}
             if git rev-parse --quiet --verify origin/$branch_name >/dev/null ; then
+              if [[ $(conan inspect ${d} 2>/dev/null | grep '^deprecated:') ]]; then
+                echo "::warning  ::branch $branch_name is deprecated, deleting it"
+                git push origin --delete $branch_name
+                continue
+              fi
               echo "::group::$d"
               if ! git merge --no-ff --no-commit origin/$branch_name ; then
                 echo "::warning  ::branch $branch_name has conflict with master, deleting it"
@@ -80,6 +85,10 @@ jobs:
           echo "| Recipe to upgrade | PR |" > $outfile
           echo "| ----------------- | -- |" >> $outfile
           for d in */*/ ; do
+            if [[ $(conan inspect ${d} 2>/dev/null | grep '^deprecated:') ]]; then
+              echo "skipping ${d} because it is deprecated"
+              continue
+            fi
             echo "::group::$d"
             branch_name=bump/${d::-1}
             if ! git switch -c $branch_name origin/$branch_name ; then
