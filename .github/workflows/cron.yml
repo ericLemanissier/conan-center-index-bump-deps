@@ -94,10 +94,10 @@ jobs:
             if ! git switch -c $branch_name origin/$branch_name ; then
               git checkout -b $branch_name upstream/master
             fi
-            conan recipe:bump-deps ${d}
-            conan recipe:bump-deps ${d}/test_package
-            git add ${d}conanfile.py
-            git add ${d}test_package/conanfile.py
+            conan recipe:bump-deps ${d} &
+            conan recipe:bump-deps ${d}/test_package &
+            wait
+            git add ${d}conanfile.py ${d}test_package/conanfile.py
             if ! git diff --cached --quiet ; then
               git commit -m "$d: bump deps"
               git push origin
