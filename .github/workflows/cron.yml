@@ -82,8 +82,8 @@ jobs:
         run: |
           mkdir ../../pages
           outfile=../../pages/index.md
-          echo "| Recipe to upgrade | Last Bump Date | PR |" > $outfile
-          echo "| ----------------- | -------------- | -- |" >> $outfile
+          echo "| Recipe to upgrade | Last Bump Date | Recipe | Test Package | PR |" > $outfile
+          echo "| ----------------- | -------------- | ------ | ------------ | -- |" >> $outfile
           for d in */*/ ; do
             if [[ $(conan inspect ${d} 2>/dev/null | grep '^deprecated:') ]]; then
               echo "skipping ${d} because it is deprecated"
@@ -95,7 +95,7 @@ jobs:
               git checkout -b $branch_name upstream/master
             fi
             conan recipe:bump-deps ${d} &
-            conan recipe:bump-deps ${d}/test_package &
+            conan recipe:bump-deps ${d}test_package &
             wait
             if ! git diff --quiet ; then
               git add ${d}conanfile.py ${d}test_package/conanfile.py
@@ -104,7 +104,19 @@ jobs:
             fi
             if git show -s --format=%ci origin/$branch_name >commit_date ; then
               COMMIT_DATE=$(<commit_date)
-              echo "| $d | ${COMMIT_DATE} | <a href=\"https://github.com/${{ github.repository_owner }}/conan-center-index/pull/new/$branch_name\">Open</a>" >> $outfile
+              echo -n "| $d |" >> $outfile
+              echo -n " ${COMMIT_DATE} |" >> $outfile
+              if git diff --quiet --merge-base upstream/master origin/$branch_name -- ${d}conanfile.py; then
+                echo -n "  |" >> $outfile
+              else
+                echo -n " Bumped |" >> $outfile
+              fi
+              if git diff --quiet --merge-base upstream/master origin/$branch_name -- {d}test_package/conanfile.py; then
+                echo -n "  |" >> $outfile
+              else
+                echo -n " Bumped |" >> $outfile
+              fi
+              echo " <a href=\"https://github.com/${{ github.repository_owner }}/conan-center-index/pull/new/$branch_name\">Open</a> |" >> $outfile
             fi
             echo "::endgroup::"
           done
