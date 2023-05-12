@@ -111,7 +111,7 @@ jobs:
               else
                 echo -n " Bumped |" >> $outfile
               fi
-              if git diff --quiet --merge-base upstream/master origin/$branch_name -- {d}test_package/conanfile.py; then
+              if git diff --quiet --merge-base upstream/master origin/$branch_name -- ${d}test_package/conanfile.py; then
                 echo -n "  |" >> $outfile
               else
                 echo -n " Bumped |" >> $outfile
