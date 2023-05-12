@@ -97,15 +97,14 @@ jobs:
             conan recipe:bump-deps ${d} &
             conan recipe:bump-deps ${d}/test_package &
             wait
-            git add ${d}conanfile.py ${d}test_package/conanfile.py
-            if ! git diff --cached --quiet ; then
+            if ! git diff --quiet ; then
+              git add ${d}conanfile.py ${d}test_package/conanfile.py
               git commit -m "$d: bump deps"
               git push origin
             fi
-            if git rev-parse --quiet --verify origin/$branch_name >commit ; then
-              COMMIT=$(<commit)
-              DATE=$(git show -s --format=%ci $COMMIT)
-              echo "| $d | $DATE | <a href=\"https://github.com/${{ github.repository_owner }}/conan-center-index/pull/new/$branch_name\">Open</a>" >> $outfile
+            if git show -s --format=%ci origin/$branch_name >commit_date ; then
+              COMMIT_DATE=$(<commit_date)
+              echo "| $d | ${COMMIT_DATE} | <a href=\"https://github.com/${{ github.repository_owner }}/conan-center-index/pull/new/$branch_name\">Open</a>" >> $outfile
             fi
             echo "::endgroup::"
           done
