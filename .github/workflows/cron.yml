@@ -82,8 +82,8 @@ jobs:
         run: |
           mkdir ../../pages
           outfile=../../pages/index.md
-          echo "| Recipe to upgrade | PR |" > $outfile
-          echo "| ----------------- | -- |" >> $outfile
+          echo "| Recipe to upgrade | Last Bump Date | PR |" > $outfile
+          echo "| ----------------- | -------------- | -- |" >> $outfile
           for d in */*/ ; do
             if [[ $(conan inspect ${d} 2>/dev/null | grep '^deprecated:') ]]; then
               echo "skipping ${d} because it is deprecated"
@@ -102,8 +102,10 @@ jobs:
               git commit -m "$d: bump deps"
               git push origin
             fi
-            if git rev-parse --quiet --verify origin/$branch_name >/dev/null ; then
-              echo "| $d | <a href=\"https://github.com/${{ github.repository_owner }}/conan-center-index/pull/new/$branch_name\">Open</a>" >> $outfile
+            if git rev-parse --quiet --verify origin/$branch_name >commit ; then
+              COMMIT=$(<commit)
+              DATE=$(git show -s --format=%ci $COMMIT)
+              echo "| $d | $DATE | <a href=\"https://github.com/${{ github.repository_owner }}/conan-center-index/pull/new/$branch_name\">Open</a>" >> $outfile
             fi
             echo "::endgroup::"
           done
