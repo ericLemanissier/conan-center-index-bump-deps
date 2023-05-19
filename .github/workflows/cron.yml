@@ -99,7 +99,7 @@ jobs:
             wait
             if ! git diff --quiet ; then
               git add ${d}conanfile.py ${d}test_package/conanfile.py
-              git commit -m "$d: bump deps"
+              git commit -m "${d::-1}: bump deps" -m "$(echo -e "Generated and committed by [Conan Center Bump Deps](https://github.com/ericLemanissier/conan-center-index-bump-deps)\nFind more updatable recipes in the [GitHub Pages](https://ericlemanissier.github.io/conan-center-index-bump-deps/)")"
               git push origin
             fi
             if git show -s --format=%ci origin/$branch_name >commit_date ; then
