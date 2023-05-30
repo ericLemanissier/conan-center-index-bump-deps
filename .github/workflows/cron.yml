@@ -85,14 +85,14 @@ jobs:
           echo "| Recipe to upgrade | Last Bump Date | Recipe | Test Package | PR |" > $outfile
           echo "| ----------------- | -------------- | ------ | ------------ | -- |" >> $outfile
           for d in */*/ ; do
-            if [[ $(conan inspect ${d} 2>/dev/null | grep '^deprecated:') ]]; then
-              echo "skipping ${d} because it is deprecated"
-              continue
-            fi
             echo "::group::$d"
             branch_name=bump/${d::-1}
             if ! git switch -c $branch_name origin/$branch_name ; then
               git checkout -b $branch_name upstream/master
+              if [[ $(conan inspect ${d} 2>/dev/null | grep '^deprecated:') ]]; then
+                echo "skipping ${d} because it is deprecated"
+                continue
+              fi
             fi
             conan recipe:bump-deps ${d} &
             conan recipe:bump-deps ${d}test_package &
