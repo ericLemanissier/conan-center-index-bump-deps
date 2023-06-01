@@ -90,7 +90,7 @@ jobs:
           echo "| Recipe to upgrade | Last Bump Date | Recipe | Test Package | PR |" > $outfile
           echo "| ----------------- | -------------- | ------ | ------------ | -- |" >> $outfile
 
-          gh pr list --limit 50000 -repo conan-io/conan-center-index --json number,url,headRefName,headRepositoryOwner --search "head:bump/" --jq ".[] | select(.headRepositoryOwner.login==\"${GITHUB_REPOSITORY_OWNER}\")" > prs.json
+          gh pr list --limit 50000 --repo conan-io/conan-center-index --json number,url,headRefName,headRepositoryOwner --search "head:bump/" --jq ".[] | select(.headRepositoryOwner.login==\"${GITHUB_REPOSITORY_OWNER}\")" > prs.json
           cat prs.json
           for d in */*/ ; do
             echo "::group::$d"
