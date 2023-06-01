@@ -63,21 +63,23 @@ jobs:
             if git rev-parse --quiet --verify origin/$branch_name >/dev/null ; then
               if [[ $(conan inspect ${d} 2>/dev/null | grep '^deprecated:') ]]; then
                 echo "::warning  ::branch $branch_name is deprecated, deleting it"
-                git push origin --delete $branch_name
+                git push origin --delete $branch_name &
                 continue
               fi
               echo "::group::$d"
+              wait
               if ! git merge --no-ff --no-commit origin/$branch_name ; then
                 echo "::warning  ::branch $branch_name has conflict with master, deleting it"
-                git push origin --delete $branch_name
+                git push origin --delete $branch_name &
               elif git diff --cached --quiet ; then
                 echo "::warning  ::branch $branch_name has no change from master, deleting it"
-                git push origin --delete $branch_name
+                git push origin --delete $branch_name &
               fi
-              git merge --abort
+              git merge --abort &
               echo "::endgroup::"
             fi
           done
+          wait
         working-directory: conan-center-index/recipes
 
       # Runs a set of commands using the runners shell
