@@ -19,6 +19,9 @@ jobs:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
 
+    env:
+      GH_TOKEN: ${{ github.token }}
+
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:    
       - uses: actions/checkout@v3
@@ -84,6 +87,8 @@ jobs:
           outfile=../../pages/index.md
           echo "| Recipe to upgrade | Last Bump Date | Recipe | Test Package | PR |" > $outfile
           echo "| ----------------- | -------------- | ------ | ------------ | -- |" >> $outfile
+
+          gh pr list --json number,url,headRefName,headRepositoryOwner --search "head:bump/" --jq '.[] | select(.headRepositoryOwner.login=="{{ github.repository_owner }}")' > ./prs.json
           for d in */*/ ; do
             echo "::group::$d"
             branch_name=bump/${d::-1}
@@ -116,7 +121,12 @@ jobs:
               else
                 echo -n " Bumped |" >> $outfile
               fi
-              echo " <a href=\"https://github.com/${{ github.repository_owner }}/conan-center-index/pull/new/$branch_name\">Open</a> |" >> $outfile
+              jq "select(.headRefName==\"$branch_name\")" prs.json > pr.json
+              if [ -s pr.json ]; then
+                echo " <a href=$(jq '.url' pr.json)>#$(jq '.number' pr.json)</a> |" >> $outfile
+              else
+                echo " <a href=\"https://github.com/${{ github.repository_owner }}/conan-center-index/pull/new/$branch_name\">Open</a> |" >> $outfile
+              fi
             fi
             echo "::endgroup::"
           done
