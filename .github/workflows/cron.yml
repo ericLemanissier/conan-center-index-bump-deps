@@ -61,11 +61,6 @@ jobs:
           for d in */*/ ; do
             branch_name=bump/${d::-1}
             if git rev-parse --quiet --verify origin/$branch_name >/dev/null ; then
-              if [[ $(conan inspect ${d} 2>/dev/null | grep '^deprecated:') ]]; then
-                echo "::warning  ::branch $branch_name is deprecated, deleting it"
-                git push origin --delete $branch_name &
-                continue
-              fi
               echo "::group::$d"
               wait
               if ! git merge --no-ff --no-commit origin/$branch_name ; then
@@ -73,6 +68,9 @@ jobs:
                 git push origin --delete $branch_name &
               elif git diff --cached --quiet ; then
                 echo "::warning  ::branch $branch_name has no change from master, deleting it"
+                git push origin --delete $branch_name &
+              elif [[ $(conan inspect ${d} 2>/dev/null | grep '^deprecated:') ]]; then
+                echo "::warning  ::branch $branch_name is deprecated, deleting it"
                 git push origin --delete $branch_name &
               fi
               git merge --abort &
