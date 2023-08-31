@@ -83,7 +83,7 @@ jobs:
       # Runs a set of commands using the runners shell
       - name: Bump versions, commit and push
         run: |
-          mkdir ../../pages
+          mkdir -p ../../pages
           outfile=../../pages/index.md
           echo "| Recipe to upgrade | Last Bump Date | Recipe | Test Package | PR |" > $outfile
           echo "| ----------------- | -------------- | ------ | ------------ | -- |" >> $outfile
