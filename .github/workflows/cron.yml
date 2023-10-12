@@ -67,6 +67,11 @@ jobs:
           echo "::debug::Iterating recipes"
           for d in */*/
           do
+            if [[ $(conan inspect ${d} 2>/dev/null | grep '^deprecated:') ]]
+            then
+              echo "skipping ${d} because it is deprecated"
+              continue
+            fi
             echo "::debug::recipe $d"
             msg=""
             for r in $(python ../../scan_for_non_maintained_dependencies.py $d/conanfile.py)
@@ -96,18 +101,23 @@ jobs:
 
       - name: Clean branches
         run: |
-          for d in */*/ ; do
+          for d in */*/
+          do
             branch_name=bump/${d::-1}
-            if git rev-parse --quiet --verify origin/$branch_name >/dev/null ; then
+            if git rev-parse --quiet --verify origin/$branch_name >/dev/null
+            then
               echo "::group::$d"
               wait
-              if ! git merge --no-ff --no-commit origin/$branch_name ; then
+              if ! git merge --no-ff --no-commit origin/$branch_name
+              then
                 echo "::warning  ::branch $branch_name has conflict with master, deleting it"
                 git push origin --delete $branch_name &
-              elif git diff --cached --quiet ; then
+              elif git diff --cached --quiet
+              then
                 echo "::warning  ::branch $branch_name has no change from master, deleting it"
                 git push origin --delete $branch_name &
-              elif [[ $(conan inspect ${d} 2>/dev/null | grep '^deprecated:') ]]; then
+              elif [[ $(conan inspect ${d} 2>/dev/null | grep '^deprecated:') ]]
+              then
                 echo "::warning  ::branch $branch_name is deprecated, deleting it"
                 git push origin --delete $branch_name &
               fi
@@ -128,12 +138,15 @@ jobs:
 
           gh pr list --limit 50000 --repo conan-io/conan-center-index --json number,url,headRefName,headRepositoryOwner --search "head:bump/" --jq ".[] | select(.headRepositoryOwner.login==\"${GITHUB_REPOSITORY_OWNER}\")" > prs.json
           cat prs.json
-          for d in */*/ ; do
+          for d in */*/
+          do
             echo "::group::$d"
             branch_name=bump/${d::-1}
-            if ! git switch -c $branch_name origin/$branch_name ; then
+            if ! git switch -c $branch_name origin/$branch_name
+            then
               git checkout -b $branch_name upstream/master
-              if [[ $(conan inspect ${d} 2>/dev/null | grep '^deprecated:') ]]; then
+              if [[ $(conan inspect ${d} 2>/dev/null | grep '^deprecated:') ]]
+              then
                 echo "skipping ${d} because it is deprecated"
                 continue
               fi
@@ -141,27 +154,32 @@ jobs:
             conan recipe:bump-deps ${d} &
             conan recipe:bump-deps ${d}test_package &
             wait
-            if ! git diff --quiet ; then
+            if ! git diff --quiet
+            then
               git add ${d}conanfile.py ${d}test_package/conanfile.py
               git commit -m "${d::-1}: bump deps" -m "$(echo -e "Generated and committed by [Conan Center Bump Deps](https://github.com/ericLemanissier/conan-center-index-bump-deps)\nFind more updatable recipes in the [GitHub Pages](https://ericlemanissier.github.io/conan-center-index-bump-deps/)")"
               git push origin
             fi
-            if git show -s --format=%ci origin/$branch_name >commit_date ; then
+            if git show -s --format=%ci origin/$branch_name >commit_date
+            then
               COMMIT_DATE=$(<commit_date)
               echo -n "| $d |" >> $outfile
               echo -n " ${COMMIT_DATE} |" >> $outfile
-              if git diff --quiet --merge-base upstream/master origin/$branch_name -- ${d}conanfile.py; then
+              if git diff --quiet --merge-base upstream/master origin/$branch_name -- ${d}conanfile.py
+              then
                 echo -n "  |" >> $outfile
               else
                 echo -n " Bumped |" >> $outfile
               fi
-              if git diff --quiet --merge-base upstream/master origin/$branch_name -- ${d}test_package/conanfile.py; then
+              if git diff --quiet --merge-base upstream/master origin/$branch_name -- ${d}test_package/conanfile.py
+              then
                 echo -n "  |" >> $outfile
               else
                 echo -n " Bumped |" >> $outfile
               fi
               jq "select(.headRefName==\"$branch_name\")" prs.json > pr.json
-              if [ -s pr.json ]; then
+              if [ -s pr.json ]
+              then
                 echo " <a href=$(jq '.url' pr.json)>#$(jq '.number' pr.json)</a> |" >> $outfile
               else
                 echo " <a href=\"https://github.com/${{ github.repository_owner }}/conan-center-index/pull/new/$branch_name\">Open</a> |" >> $outfile
