@@ -23,7 +23,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
 
     # Steps represent a sequence of tasks that will be executed as part of the job
-    steps:    
+    steps:
       - uses: actions/checkout@v4
 
       - name: Checkout CCI
@@ -55,7 +55,45 @@ jobs:
       - name: Export all versions
         run: conan cci:export-all-versions --path recipes/
         working-directory: conan-center-index
-        
+
+      - name: Check dependencies status
+        run: |
+          echo "::debug::Creating pages"
+          mkdir -p ../../pages
+          echo "::debug::Creating outfile"
+          outfile=../../pages/dependencies_maintenance_status.md
+          echo "| Recipe | Unmaintained dependencies |" > $outfile
+          echo "| ------ | ------------------------- |" >> $outfile
+          echo "::debug::Iterating recipes"
+          for d in */*/
+          do
+            echo "::debug::recipe $d"
+            msg=""
+            for r in $(python ../../scan_for_non_maintained_dependencies.py $d/conanfile.py)
+            do
+              echo "::debug::dependency $r"
+              r_path=$(conan cache path $r 2>/dev/null || true)
+              echo "::debug::path $r_path"
+              if [[ -z "$r_path" ]]
+              then
+                echo "::warning  ::recipe $d depends on $r which is not maintained"
+                msg+="$r, "
+              elif [[ $(conan inspect $r_path 2>/dev/null | grep '^deprecated:') ]]
+              then
+                echo "::warning  ::recipe $d depends on $r which is deprecated"
+                msg+="$r, "
+              fi
+              echo "::debug::finish dependency"
+            done
+            if [[ ! -z "$msg" ]]
+            then
+              echo "::debug::appending to outfile $d $msg"
+              echo "| $d | ${msg::-2} |" >> $outfile
+            fi
+            echo "::debug::Finish recipe"
+          done
+        working-directory: conan-center-index/recipes
+
       - name: Clean branches
         run: |
           for d in */*/ ; do
