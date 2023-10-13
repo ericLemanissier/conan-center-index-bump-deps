@@ -18,9 +18,6 @@ def main(recipe_file: str) -> None:
             oldref = arg.value
             parts = oldref.split("/")
             version = parts[1]
-            if version.startswith("[") or version.endswith("]"):
-                logging.info("Unable to get version of %s because it uses a version range", oldref)
-                continue
             if version == "<host_version>":
                 continue
             name = parts[0]

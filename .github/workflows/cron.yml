@@ -187,7 +187,6 @@ jobs:
               then
                 echo "removing $p$d because it is deprecated"
                 echo "::debug::code: $code"
-                echo "::debug::$(<output)"
                 rm -r $d
                 yq -i "del(.versions[] | select(.folder == \"${d::-1}\"))" config.yml || echo "::error::Could not remove $d from $p"
               fi
@@ -213,23 +212,25 @@ jobs:
           for d in */*/
           do
             echo "::debug::recipe $d"
-            msg=""
-            for r in $(python ../../scan_for_non_maintained_dependencies.py $d/conanfile.py)
-            do
-              echo "::debug::dependency $r"
-              r_path=$(conan cache path $r 2>/dev/null || true)
-              echo "::debug::path $r_path"
-              if [[ -z "$r_path" ]]
-              then
-                echo "::warning  ::recipe $d depends on $r which is not maintained"
-                msg+="$r, "
-              fi
-              echo "::debug::finish dependency"
-            done
-            if [[ ! -z "$msg" ]]
+            deps=$(python ../../scan_for_non_maintained_dependencies.py $d/conanfile.py)
+            if [ -n "$deps" ]
             then
-              echo "::debug::appending to outfile $d $msg"
-              echo "| $d | ${msg::-2} |" >> $outfile
+              msg=""
+              while IFS= read -r r
+              do
+                echo "::debug::dependency $r"
+                if conan list "$r" --format json | jq -e '."Local Cache".error' 1>/dev/null
+                then
+                  echo "::warning  ::recipe $d depends on $r which is not maintained"
+                  msg+="$r, "
+                fi
+                echo "::debug::finish dependency"
+              done <<< "$deps"
+              if [[ ! -z "$msg" ]]
+              then
+                echo "::debug::appending to outfile $d $msg"
+                echo "| $d | ${msg::-2} |" >> $outfile
+              fi
             fi
             echo "::debug::Finish recipe"
           done
