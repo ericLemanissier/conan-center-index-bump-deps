@@ -212,7 +212,7 @@ jobs:
           for d in */*/
           do
             echo "::debug::recipe $d"
-            deps=$(python ../../scan_for_non_maintained_dependencies.py $d/conanfile.py)
+            deps=$(python ../../get_all_dependencies.py $d/conanfile.py | sort -u)
             if [ -n "$deps" ]
             then
               msg=""
