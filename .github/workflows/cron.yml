@@ -170,9 +170,8 @@ jobs:
           cache: 'pip' # caching pip dependencies
       - run: |
           python3 -m pip install -r requirements.txt
-          conan config install https://github.com/conan-io/conan-extensions.git
 
-      - name: Remove deprecated recipes
+      - name: find deprecated recipes
         run: |
           for p in */
           do
@@ -183,22 +182,25 @@ jobs:
               echo "::debug::Enterring folder $d"
               code=0
               conan inspect $d 1>output 2>/dev/null || code=$?
-              if [[ $code -ne 0 || $( grep '^deprecated:' output) ]]
+              export folder=${d::-1}
+              if [[ $code -ne 0 ]]
               then
-                echo "removing $p$d because it is deprecated"
-                echo "::debug::code: $code"
-                rm -r $d
-                yq -i "del(.versions[] | select(.folder == \"${d::-1}\"))" config.yml || echo "::error::Could not remove $d from $p"
+                  echo "$p$d cannot be inspected"
+                  echo "::debug::code: $code"
+                  yq e -i '(.versions[] | select(.folder == env(folder)) | .status) = "incompatible"' config.yml &
+                  rm "${d}conanfile.py" &
+              elif [[ $( grep '^deprecated:' output) ]]
+              then
+                  echo "$p$d is deprecated"
+                  yq e -i '(.versions[] | select(.folder == env(folder)) | .status) = "deprecated"' config.yml &
+                  rm "${d}conanfile.py" &
               fi
               rm output
             done
             cd ..
           done
+          wait
         working-directory: conan-center-index/recipes
-
-      - name: Export all versions
-        run: conan cci:export-all-versions --path recipes/
-        working-directory: conan-center-index
 
       - name: Check dependencies status
         run: |
@@ -206,30 +208,87 @@ jobs:
           mkdir -p ../../pages
           echo "::debug::Creating outfile"
           outfile=../../pages/dependencies_maintenance_status.md
-          echo "| Recipe | Unmaintained dependencies |" > $outfile
-          echo "| ------ | ------------------------- |" >> $outfile
+          echo "| Recipe | unknown dependencies | unknown dependencies version | incompatible dependencies | deprecated dependencies |" > $outfile
+          echo "| ------ | -------------------- | ---------------------------- | ------------------------- | ----------------------- |" >> $outfile
           echo "::debug::Iterating recipes"
           for d in */*/
           do
             echo "::debug::recipe $d"
+            if [[ ! -f "$d/conanfile.py" ]]
+            then
+              continue
+            fi
             deps=$(python ../../get_all_dependencies.py $d/conanfile.py | sort -u)
             if [ -n "$deps" ]
             then
-              msg=""
+              do_not_exist=""
+              do_not_have_version=""
+              incompatible=""
+              deprecated=""
               while IFS= read -r r
               do
                 echo "::debug::dependency $r"
-                if conan list "$r" --format json | jq -e '."Local Cache".error' 1>/dev/null
+                package=$(echo $r | cut -d / -f 1)
+                export version=$(echo $r | cut -d / -f 2)
+                if [[ ${version: 0:1} == "[" && ${version: -1:1} == "]" ]]
                 then
-                  echo "::warning  ::recipe $d depends on $r which is not maintained"
-                  msg+="$r, "
+                  echo "::debug::ignoring because version is a range"
+                  continue
+                fi
+                version="\"$version\""
+                config_yml="$package/config.yml"
+                if [[ ! -f $config_yml ]]
+                then
+                  echo "::warning  ::recipe $d depends on $package which does not exist"
+                  do_not_exist+="$package, "
+                elif [[ $(yq e '.versions | has(env(version))' $config_yml) == false ]]
+                then
+                  echo "::warning  ::recipe $d depends on $package which does not have version $version"
+                  do_not_have_version+="$r, "
+                else
+                  status=$(yq e '.versions[env(version)].status' $config_yml)
+                  case $status in
+                  incompatible)
+                    echo "::warning  ::recipe $d depends on $r which is incompatible with conan 2"
+                    incompatible+="$r, "
+                    ;;
+                  deprecated)
+                    echo "::warning  ::recipe $d depends on $r which is deprecated"
+                    deprecated+="$r, "
+                    ;;
+                  null)
+                    ;;
+                  *)
+                    echo "::warning  ::recipe $d depends on $r which status is unknown: $status"
+                    ;;
+                  esac
                 fi
                 echo "::debug::finish dependency"
               done <<< "$deps"
-              if [[ ! -z "$msg" ]]
+              if [[ ! -z "${do_not_exist}${do_not_have_version}${incompatible}${deprecated}" ]]
               then
-                echo "::debug::appending to outfile $d $msg"
-                echo "| $d | ${msg::-2} |" >> $outfile
+                echo "::debug::appending to outfile $d"
+                echo -n "| $d | " >> $outfile
+                if [[ ! -z "$do_not_exist" ]]
+                then
+                  echo -n "${do_not_exist::-2}" >> $outfile
+                fi
+                echo -n " | " >> $outfile
+                if [[ ! -z "$do_not_have_version" ]]
+                then
+                  echo -n "${do_not_have_version::-2}" >> $outfile
+                fi
+                echo -n " | " >> $outfile
+                if [[ ! -z "$incompatible" ]]
+                then
+                  echo -n "${incompatible::-2}" >> $outfile
+                fi
+                echo -n " | " >> $outfile
+                if [[ ! -z "$deprecated" ]]
+                then
+                  echo -n "${deprecated::-2}" >> $outfile
+                fi
+                echo " |" >> $outfile
               fi
             fi
             echo "::debug::Finish recipe"
