@@ -142,6 +142,7 @@ jobs:
             fi
             echo "::endgroup::"
           done
+          cat $outfile >> $GITHUB_STEP_SUMMARY
         working-directory: conan-center-index/recipes
       - uses: actions/upload-artifact@v3
         with:
@@ -294,6 +295,7 @@ jobs:
             fi
             echo "::debug::Finish recipe"
           done
+          cat $outfile >> $GITHUB_STEP_SUMMARY
         working-directory: conan-center-index/recipes
 
       - uses: actions/upload-artifact@v3
