@@ -118,7 +118,7 @@ jobs:
             if git show -s --format=%ci origin/$branch_name >commit_date
             then
               COMMIT_DATE=$(<commit_date)
-              echo -n "| $d |" >> $outfile
+              echo -n "| [$d](https://github.com/conan-io/conan-center-index/tree/HEAD/recipes/${d}conanfile.py)  |" >> $outfile
               echo -n " ${COMMIT_DATE} |" >> $outfile
               if git diff --quiet --merge-base upstream/master origin/$branch_name -- ${d}conanfile.py
               then
@@ -244,17 +244,18 @@ jobs:
                 elif [[ $(yq e '.versions | has(env(version))' $config_yml) == false ]]
                 then
                   echo "::warning  ::recipe $d depends on $package which does not have version $version"
-                  do_not_have_version+="$r, "
+                  do_not_have_version+="[$r](https://github.com/conan-io/conan-center-index/tree/HEAD/recipes/$package/config.yml), "
                 else
                   status=$(yq e '.versions[env(version)].status' $config_yml)
+                  folder=$(yq e '.versions[env(version)].folder' $config_yml)
                   case $status in
                   incompatible)
                     echo "::warning  ::recipe $d depends on $r which is incompatible with conan 2"
-                    incompatible+="$r, "
+                    incompatible+="[$r](https://github.com/conan-io/conan-center-index/tree/HEAD/recipes/$package/$folder/conanfile.py), "
                     ;;
                   deprecated)
                     echo "::warning  ::recipe $d depends on $r which is deprecated"
-                    deprecated+="$r, "
+                    deprecated+="[$r](https://github.com/conan-io/conan-center-index/tree/HEAD/recipes/$package/$folder/conanfile.py), "
                     ;;
                   null)
                     ;;
@@ -268,7 +269,7 @@ jobs:
               if [[ ! -z "${do_not_exist}${do_not_have_version}${incompatible}${deprecated}" ]]
               then
                 echo "::debug::appending to outfile $d"
-                echo -n "| $d | " >> $outfile
+                echo -n "| [$d](https://github.com/conan-io/conan-center-index/tree/HEAD/recipes/${d}conanfile.py) | " >> $outfile
                 if [[ ! -z "$do_not_exist" ]]
                 then
                   echo -n "${do_not_exist::-2}" >> $outfile
