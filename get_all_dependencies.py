@@ -4,9 +4,9 @@ import ast
 import logging
 
 
-def main(recipe_file: str) -> None:
-    with open(recipe_file, encoding='utf-8') as f:
-        recipe_lines = f.readlines()
+def main(recipe_file: str) -> int:
+    with open(recipe_file, encoding='utf-8') as file:
+        recipe_lines = file.readlines()
     source = "".join(recipe_lines)
 
     for node in ast.walk(ast.parse(source)):
@@ -22,6 +22,7 @@ def main(recipe_file: str) -> None:
                 continue
             name = parts[0]
             print(f"{name}/{version}")
+    return 0
 
 
 if __name__ == "__main__":
