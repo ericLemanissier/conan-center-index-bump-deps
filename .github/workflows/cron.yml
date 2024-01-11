@@ -115,7 +115,7 @@ jobs:
               git commit -m "${d::-1}: bump deps" -m "$(echo -e "Generated and committed by [Conan Center Bump Deps](https://github.com/${GITHUB_REPOSITORY})\nFind more updatable recipes in the [GitHub Pages](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/)")"
               git push origin
             fi
-            if git show -s --format=%ci origin/$branch_name >commit_date
+            if git show -s --format=%ci origin/$branch_name -- >commit_date
             then
               COMMIT_DATE=$(<commit_date)
               echo -n "| [$d](https://github.com/conan-io/conan-center-index/tree/HEAD/recipes/${d}conanfile.py)  |" >> $outfile
