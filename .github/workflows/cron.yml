@@ -48,7 +48,7 @@ jobs:
           cache: 'pip' # caching pip dependencies
       - run: |
           python3 -m pip install -r requirements.txt
-          conan config install https://github.com/conan-io/conan-extensions.git
+          conan config install https://github.com/ericLemanissier/conan-extensions.git --args "--branch bump"
 
       - name: Export all versions
         run: conan cci:export-all-versions --path recipes/
